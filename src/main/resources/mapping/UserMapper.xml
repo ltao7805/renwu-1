@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ltao.pmai.mapper.UserMapper">
+  <resultMap id="BaseResultMap" type="com.ltao.pmai.model.User">
+    <!--@mbg.generated-->
+    <!--@Table user-->
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="name" jdbcType="VARCHAR" property="name" />
+    <result column="pwd" jdbcType="VARCHAR" property="pwd" />
+    <result column="rid" jdbcType="INTEGER" property="rid" />
+  </resultMap>
+  <select id="Login" resultMap="BaseResultMap">
+        select `name`,rid from user where name=#{user.name} and pwd=#{user.pwd}
+  </select>
+
+</mapper>
