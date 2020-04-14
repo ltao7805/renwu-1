@@ -1,0 +1,55 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <input type="text" class="name" placeholder="用户名">
+    <input type="password" class="pwd" placeholder="密码">
+    <input type="button" value="登录" onclick="login()">
+    <input type="button" value="获取信息" onclick="getInfo()">
+</body>
+<script src="jquery-1.12.4.js"></script>
+<script>
+    var login=()=>{
+        var user={
+            name:$(".name").val(),
+            pwd:$(".pwd").val()
+        }
+        $.ajax({
+            url:'http://localhost:8888/api/pmai/login',
+            type:'POST',
+            contentType:'application/json',
+            dataType:'json',
+            data:JSON.stringify(user),
+            success:data=>{
+                //保存到本地，关闭浏览器也能获取数据-----------你也可以试试cookie+redis方式
+                localStorage.setItem("token",data.data);
+            }
+        })
+    };
+
+    var getInfo=()=>{
+        var token=localStorage.getItem("token");
+        //传null到后台会报错，设置为0即可
+        if(token==null){
+            token="0";
+        }
+        $.ajax({
+            url:`http://localhost:8888/api/pmai/getT/${token}`,
+            type:'GET',
+            dataType:'json',
+            headers:{"token":token},
+            success:data=>{
+                if(data.code==401){
+                    //登录失效，删除本地token
+                    localStorage.removeItem("token");
+                }else{
+                    console.log(data);
+                }
+            }
+        })
+    }
+</script>
+</html>

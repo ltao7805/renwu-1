@@ -1,11 +1,12 @@
 package com.ltao.pmai.configurer;
 
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.serializer.SerializerFeature;
-import com.alibaba.fastjson.support.config.FastJsonConfig;
 import com.alibaba.fastjson.support.spring.FastJsonHttpMessageConverter;
 import com.ltao.pmai.core.Result;
 import com.ltao.pmai.core.ResultCode;
+import com.ltao.pmai.util.JwtUtils;
 import org.mybatis.spring.annotation.MapperScan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,12 +16,14 @@ import org.springframework.boot.web.servlet.ServletComponentScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.NoHandlerFoundException;
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -38,19 +41,21 @@ public class WebConfigurer implements WebMvcConfigurer {
 
     private final Logger logger = LoggerFactory.getLogger(WebMvcConfigurer.class);
 
+    //放行路径
+    private final String [] notIntercept ={"/api/pmai/login"};
+
+
     @Value("${spring.profiles.active}")
     private String env; //当前激活的环境
 
     @Bean
     public HttpMessageConverters httpMessageConverters() {
         FastJsonHttpMessageConverter converter = new FastJsonHttpMessageConverter();
-        FastJsonConfig fastJsonConfig = new FastJsonConfig();
-        //fastjson序列化常用配置
-        fastJsonConfig.setSerializerFeatures(SerializerFeature.WriteEnumUsingToString, SerializerFeature.WriteMapNullValue,
+        converter.setCharset(FastJsonHttpMessageConverter.UTF8);
+        converter.setFeatures(SerializerFeature.WriteEnumUsingToString,
                 SerializerFeature.QuoteFieldNames, SerializerFeature.PrettyFormat,
                 SerializerFeature.WriteDateUseDateFormat, SerializerFeature.WriteNullNumberAsZero,
                 SerializerFeature.WriteNullStringAsEmpty, SerializerFeature.DisableCircularReferenceDetect);
-        converter.setFastJsonConfig(fastJsonConfig);
         //返回消息使用json格式
         List<MediaType> mediaTypes = new ArrayList<>();
         mediaTypes.add(MediaType.APPLICATION_JSON);
@@ -58,16 +63,22 @@ public class WebConfigurer implements WebMvcConfigurer {
         return new HttpMessageConverters(converter);
     }
 
-    @Override
-    public void addCorsMappings(CorsRegistry registry) {
-        // 设置允许跨域的路径
-        registry.addMapping("/**")
-                // 设置允许跨域请求的域名
-                .allowedOrigins("*").allowedHeaders("*")
-                // 是否允许证书 不再默认开启
-                .allowCredentials(true)
-                // 设置允许的方法
-                .allowedMethods("*");
+    //跨域配置
+    @Bean
+    public CorsFilter corsFilter() {
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", corsConfig());
+        return new CorsFilter(source);
+    }
+
+    private CorsConfiguration corsConfig() {
+        CorsConfiguration corsConfiguration = new CorsConfiguration();
+        corsConfiguration.addAllowedOrigin("*");
+        corsConfiguration.addAllowedHeader("*");
+        corsConfiguration.addAllowedMethod("*");
+        corsConfiguration.setAllowCredentials(true);
+        corsConfiguration.setMaxAge(3600L);
+        return corsConfiguration;
     }
 
     //拦截器 token验证
@@ -77,17 +88,18 @@ public class WebConfigurer implements WebMvcConfigurer {
         registry.addInterceptor(new HandlerInterceptor() {
             @Override
             public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-                if(1==1){
-//                    System.out.println("执行验证通过");
+                //token验证
+                boolean checkToken = JwtUtils.checkToken(request);
+                if(checkToken){
                     return true;
                 }else{
                     Result result = new Result();
-                    result.setCode(ResultCode.UNAUTHORIZED).setMessage("验证失败");
+                    result.setCode(ResultCode.UNAUTHORIZED).setMessage("登录失效，请重新登录");
                     responseResult(response,result);
                     return false;
                 }
             }
-        });
+        }).excludePathPatterns(notIntercept);
     }
     //全局统一异常处理
     @Override
@@ -120,7 +132,7 @@ public class WebConfigurer implements WebMvcConfigurer {
             }
         });
     }
-    //统一结果返回
+    //统一响应结果
     private void responseResult(HttpServletResponse response,Result result){
         response.setCharacterEncoding("UTF-8");
         response.setHeader("Content-type", "application/json;charset=UTF-8");

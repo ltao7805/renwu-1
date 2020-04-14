@@ -4,6 +4,7 @@ import com.ltao.pmai.core.Result;
 import com.ltao.pmai.core.ResultGenerator;
 import com.ltao.pmai.model.User;
 import com.ltao.pmai.service.Services;
+import com.ltao.pmai.util.JwtUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,12 +20,16 @@ public class ControllerTest {
         return ResultGenerator.genSuccessResult();
     }
 
-    @GetMapping("login/{name}/{pwd}")
-    public Result UserLogin(@PathVariable String name, @PathVariable String pwd){
-        User user = new User();
-        user.setName(name);
-        user.setPwd(pwd);
+    @PostMapping("login")
+    public Result UserLogin(@RequestBody User user){
         return services.Login(user);
     }
+
+    @GetMapping("getT/{token}")
+    public Result<Object> getUser(@PathVariable String token){
+        Object user = JwtUtils.getUserByJwtToken(token);
+        return ResultGenerator.genSuccessResult("sucess", user);
+    }
+
 
 }
